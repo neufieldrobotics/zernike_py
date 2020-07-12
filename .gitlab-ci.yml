@@ -1,6 +1,5 @@
 before_script:
   - python --version
-  - pip install -r requirements.txt
 
 stages:
   - test
@@ -8,14 +7,35 @@ stages:
 test:python35:
   image: python:3.5
   script:
+  - pip install -r requirements/opencv_latest.txt
+  - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
 
 test:python36:
   image: python:3.6
   script:
+  - pip install -r requirements/opencv_latest.txt
+  - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
 
 test:python37:
   image: python:3.7
   script:
+  - pip install -r requirements/opencv_latest.txt
+  - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
+
+test:python35:
+  image: python:3.5
+  script:
+  - pip install -r requirements/opencv_331.txt
+  - python -c "import cv2; print(cv2.__version__)"
+  - python -m unittest discover -s tests -v
+
+test:python36:
+  image: python:3.6
+  script:
+  - pip install -r requirements/opencv_331.txt
+  - python -c "import cv2; print(cv2.__version__)"
+  - python -m unittest discover -s tests -v
+
