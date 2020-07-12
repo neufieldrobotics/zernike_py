@@ -588,7 +588,7 @@ class MultiHarrisZernike (cv2.Feature2D):
         if timing: print("Feature jets - {:0.4f}".format(time.time()-st)); st=time.time()
         V,alpha,A = self.zinvariants4(JA, JB)
         if timing: print("Feature invariants - {:0.4f}".format(time.time()-st)); st=time.time()
-        kp = [cv2.KeyPoint(float(x),float(y),self.zrad*(sc+1)*2,_angle=ang,_response=res,_octave=sc)
+        kp = [cv2.KeyPoint(float(x),float(y),float(self.zrad*(sc+1)*2),_angle=float(ang),_response=float(res),_octave=int(sc))
               for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha),
                                         Ft['evec'],Ft['svec'])]
         return kp, V, #Ft, F, Ft, JA, JB, alpha, A
