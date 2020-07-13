@@ -4,40 +4,40 @@ before_script:
 stages:
   - test
 
-test:python35:
-  image: python:3.5_opencv_latest
+test:python35_opencv_latest:
+  image: python:3.5
   retry: 2
   script:
   - pip install -r requirements/opencv_latest.txt
   - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
 
-test:python36:
-  image: python:3.6_opencv_latest
+test:python36_opencv_latest:
+  image: python:3.6
   retry: 2
   script:
   - pip install -r requirements/opencv_latest.txt
   - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
 
-test:python37:
-  image: python:3.7_opencv_latest
+test:python37_opencv_latest:
+  image: python:3.7
   retry: 2
   script:
   - pip install -r requirements/opencv_latest.txt
   - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
 
-test:python35:
-  image: python:3.5_opencv_3.3.1
+test:python35_opencv_331:
+  image: python:3.5
   retry: 2
   script:
   - pip install -r requirements/opencv_331.txt
   - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
 
-test:python36:
-  image: python:3.6_opencv_3.3.1
+test:python36_opencv_331:
+  image: python:3.6
   retry: 2
   script:
   - pip install -r requirements/opencv_331.txt
