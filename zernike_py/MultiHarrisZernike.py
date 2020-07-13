@@ -13,7 +13,9 @@ from matplotlib import pyplot as plt
 #from matlab_imresize.imresize import imresize
 #from scipy.ndimage import convolve
 
-class MultiHarrisZernike (cv2.Feature2D):
+# Inheriting from opencv class causes segfaults
+#class MultiHarrisZernike (cv2.Feature2D):
+class MultiHarrisZernike:
     '''
     MultiHarrisZernike feature detector which uses multi-level harris corners
     along with Zernike parameters on 2 different radii discs as the feature detector
