@@ -5,7 +5,7 @@ stages:
   - test
 
 test:python35:
-  image: python:3.5
+  image: python:3.5_opencv_latest
   retry: 2
   script:
   - pip install -r requirements/opencv_latest.txt
@@ -13,7 +13,7 @@ test:python35:
   - python -m unittest discover -s tests -v
 
 test:python36:
-  image: python:3.6
+  image: python:3.6_opencv_latest
   retry: 2
   script:
   - pip install -r requirements/opencv_latest.txt
@@ -21,7 +21,7 @@ test:python36:
   - python -m unittest discover -s tests -v
 
 test:python37:
-  image: python:3.7
+  image: python:3.7_opencv_latest
   retry: 2
   script:
   - pip install -r requirements/opencv_latest.txt
@@ -29,7 +29,7 @@ test:python37:
   - python -m unittest discover -s tests -v
 
 test:python35:
-  image: python:3.5
+  image: python:3.5_opencv_3.3.1
   retry: 2
   script:
   - pip install -r requirements/opencv_331.txt
@@ -37,10 +37,9 @@ test:python35:
   - python -m unittest discover -s tests -v
 
 test:python36:
-  image: python:3.6
+  image: python:3.6_opencv_3.3.1
   retry: 2
   script:
   - pip install -r requirements/opencv_331.txt
   - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
-
