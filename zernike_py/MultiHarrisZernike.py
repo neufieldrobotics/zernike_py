@@ -9,7 +9,6 @@ import numpy as np
 np.set_printoptions(precision=5,suppress=True)
 import cv2
 import time
-from matplotlib import pyplot as plt
 #from matlab_imresize.imresize import imresize
 #from scipy.ndimage import convolve
 
@@ -168,6 +167,8 @@ class MultiHarrisZernike:
         '''
         Plot the generated zernike polynomials
         '''
+        from matplotlib import pyplot as plt
+
         nm=len(Z)
         f, axes = plt.subplots(nm, nm, sharey=True)
         f.subplots_adjust(left=0.0, bottom=0.0, right=1.0, top=1.0, wspace=0.0, hspace=0.0)
