@@ -440,7 +440,7 @@ class MultiHarrisZernike:
                         thresh = thresh*1.2
                         selecte = evec > thresh
 
-                    while np.sum(selecte) < Nfsec:
+                    while np.sum(selecte) < Nfsec and thresh > 1e-9:
                         thresh = thresh*0.9
                         selecte = evec > thresh
 
