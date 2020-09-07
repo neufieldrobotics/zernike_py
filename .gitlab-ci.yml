@@ -24,6 +24,7 @@ test:python37_opencv_latest:
   image: python:3.7
   retry: 2
   script:
+  - apt-get install libgl1-mesa-glx
   - pip install -r requirements/opencv_latest.txt
   - python -c "import cv2; print(cv2.__version__)"
   - python -m unittest discover -s tests -v
