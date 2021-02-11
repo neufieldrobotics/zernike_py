@@ -5,10 +5,17 @@ python:
 - "3.5"
 - "3.6"
 - "3.7"
+- "3.8"
 
 env:
-- OPENCV_VER=331
 - OPENCV_VER=latest
+
+jobs:
+  include:
+  - python: 3.5
+    env: OPENCV_VER=331
+  - python: 3.6
+    env: OPENCV_VER=331
 
 script: ./test.py $TEST_SUITE
 
