@@ -2,7 +2,7 @@
 
 # zernike_py
 
-Python implementation of multi-scale Harris corner detector with zernike feature descriptor as described in ["Toward large-area mosaicing for underwater scientific applications"](ftp://ftp.whoi.edu/pub/users/hanu/web_pdf/pizarro2003joe.pdf).  If you use zernike_py in academic work, please cite:
+Python implementation of multi-scale Harris corner detector with zernike feature descriptor as described in ["Toward large-area mosaicing for underwater scientific applications"](https://bit.ly/3751KRP).  If you use zernike_py in academic work, please cite:
 
 `O. Pizarro and H. Singh, "Toward large-area mosaicing for underwater scientific applications," in IEEE Journal of Oceanic Engineering, vol. 28, no. 4, pp. 651-672, Oct. 2003, doi: 10.1109/JOE.2003.819154.`
 
@@ -30,3 +30,4 @@ pip install -r requirements/opencv_latest.txt
 ```sh
 python ./demo.py
 ```
+
