@@ -20,8 +20,8 @@ jobs:
 script: ./test.py $TEST_SUITE
 
 before_install:
-- apt-get update -qq
-- apt-get -y -qq install libgl1-mesa-glx
+- sudo apt-get update -qq
+- sudo apt-get -y -qq install libgl1-mesa-glx
 
 install:
 - pip install -r requirements/opencv_$TRAVIS_BUILD_DIR.txt
