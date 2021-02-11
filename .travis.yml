@@ -1,0 +1,25 @@
+language: python
+dist: xenial
+
+python: 
+- "3.5"
+- "3.6"
+- "3.7"
+
+env:
+- OPENCV_VER=331
+- OPENCV_VER=latest
+
+script: ./test.py $TEST_SUITE
+
+before_install:
+- apt-get update -qq
+- apt-get -y -qq install libgl1-mesa-glx
+
+install:
+- pip install -r requirements/opencv_$TRAVIS_BUILD_DIR.txt
+
+script:
+- python --version
+- echo OPENCV_VER is $OPENCV_VER
+- python -m unittest discover -s tests -v
