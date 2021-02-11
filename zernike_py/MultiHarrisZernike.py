@@ -177,7 +177,7 @@ class MultiHarrisZernike:
         w, h = Z[0][0].shape
         for n in range(nm):
             for m in range(nm):
-                if Z[n][m] is not 0:
+                if Z[n][m] != 0:
                     axes[n,m].imshow(np.real(Z[n][m]),cmap='gray')
                 axes[n,m].axis('off')
 
