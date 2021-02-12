@@ -24,7 +24,7 @@ before_install:
 - sudo apt-get -y -qq install libgl1-mesa-glx
 
 install:
-- pip install -r requirements/opencv_$TRAVIS_BUILD_DIR.txt
+- pip install -r requirements/opencv_$OPENCV_VER.txt
 
 script:
 - python --version
