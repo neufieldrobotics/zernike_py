@@ -177,10 +177,12 @@ class MultiHarrisZernike:
         w, h = Z[0][0].shape
         for n in range(nm):
             for m in range(nm):
-                if Z[n][m] != 0:
+                if isinstance(Z[n][m], int) and Z[n][m] == 0:
+                    pass
+                else:
                     axes[n,m].imshow(np.real(Z[n][m]),cmap='gray')
                 axes[n,m].axis('off')
-
+                
     def getNfeats(self):
         return self.Nfeats
 
@@ -259,7 +261,7 @@ class MultiHarrisZernike:
         return {'images':images, 'lpimages':lpimages, 'sigd':sigd_list,
                 'sigi':sigi_list, 'masks':masks}
 
-    def eigen_image_p(self,lpf,scale):
+    def eigen_image_p(self,lpf,scale, compute_eigenvals=False):
         '''
         ef2,nL = eigen_image_p(lpf,scale)
         set up in pyramid scheme with detection scaled smoothed images
@@ -293,7 +295,19 @@ class MultiHarrisZernike:
             sqrterm = np.sqrt(np.square(Tr)-4*Det)
 
         ef2 = scale**(-2)*0.5*(Tr - sqrterm)
-        return np.nan_to_num(ef2),nL
+
+        if compute_eigenvals:           
+            M = np.zeros((lpf.shape[0], lpf.shape[1], 2,2))
+            M[:,:,0,0] = Mfxx
+            M[:,:,0,1] = Mfxy
+            M[:,:,1,0] = Mfxy
+            M[:,:,1,1] = Mfyy
+    
+            eig_vals = np.linalg.eigvals(M)
+            return np.nan_to_num(ef2),nL, eig_vals
+        else:
+            return np.nan_to_num(ef2),nL
+    
 
     def feat_extract_p2 (self, ImgPyramid):
         '''
@@ -552,14 +566,38 @@ class MultiHarrisZernike:
         A = np.hstack((Aa, Ab))
         alpha = np.angle(JA[1][1])
         return V,alpha,A
+    
+    def keypointList2FtDict(self, keypoints):
+        '''
+        Convert an OpenCV keypoint list to MultiHaris style Ft dict
+        '''
+        ivec = []
+        jvec = []
+        evec = []
+        svec = []
+        sivec = []
+        sjvec = []
+
+        for kp in keypoints:
+            jvec.append(kp.pt[0])
+            ivec.append(kp.pt[1])
+            evec.append(kp.response)
+            svec.append(kp.octave)
+            sjvec.append(int(np.round_(kp.pt[0]*self.ratio**kp.octave)))
+            sivec.append(int(np.round_(kp.pt[1]*self.ratio**kp.octave)))
+
+        Ft = {'ivec':np.array(ivec), 'jvec':np.array(jvec), 'svec':np.array(svec),
+              'sivec':np.array(sivec), 'sjvec':np.array(sjvec), 'evec':np.array(evec),
+              'Nfeats':len(keypoints)}
+        return Ft
 
     def getDefaultName(self):
         return "MultiHarrisZernike"
 
     def defaultNorm(self):
         return cv2.NORM_L2
-
-    def detectAndCompute(self, gr_img, mask=None, timing=False):
+    
+    def detectAndCompute(self, gr_img, mask=None, timing=False, computeEigVals=False):
         '''
         cv2.Feature2D style detectAndCompute.  Takes a grayscale image and
         optionally a mask and returns OpenCV keypoints and descriptors
@@ -594,7 +632,30 @@ class MultiHarrisZernike:
         kp = [cv2.KeyPoint(float(x),float(y),float(self.zrad*(sc+1)*2),_angle=float(ang),_response=float(res),_octave=int(sc))
               for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha),
                                         Ft['evec'],Ft['svec'])]
-        return kp, V, #Ft, F, Ft, JA, JB, alpha, A
+              
+        if computeEigVals:
+            scales = self.levels
+            ratio = self.ratio
+            lpimages = P['lpimages']
+            #masks = ImgPyramid['masks']
+            #[rows,cols] = lpimages[0].shape
+    
+            eig = [None] * scales
+            nL = [None] * scales
+            eigVals = [None] * scales
+    
+            for k in range(scales):
+                [eig[k], nL[k], eigVals[k]] = self.eigen_image_p(lpimages[k],ratio**(k), compute_eigenvals=True)
+    
+            kp_eigVals = np.zeros((Ft['Nfeats'],2))
+            # i at specified scale, j at specified scale and s scale         
+            for i, (si, sj, s) in enumerate(zip(Ft['sivec'], Ft['sjvec'], Ft['svec'])):
+                kp_eigVals[i,:] = eigVals[s][si,sj]
+
+            return kp, V, kp_eigVals
+        
+        else:
+            return kp, V, #Ft, F, Ft, JA, JB, alpha, A
 
     def detect(self, gr_img, mask=None, timing=False):
         '''
@@ -642,33 +703,16 @@ class MultiHarrisZernike:
         ----------
         gr_img : 2D-array (image)
             The input grayscale image
-        keypoints : 2D-array, optional
-            Image mask with 1s where keypoints are permissible
+        keypoints : list of OpenCV keypoint objects
         timing : bool, optional
             Display timing in various parts of algorithm
 
         ----------
         Example usage:
-            kp, des = a.detectAndCompute(gr, mask=m1)
+            kp, des = a.compute(gr, kp, mask=m1)
 
         '''
-        ivec = []
-        jvec = []
-        evec = []
-        svec = []
-        sivec = []
-        sjvec = []
-
-        for kp in keypoints:
-            jvec.append(kp.pt[0])
-            ivec.append(kp.pt[1])
-            evec.append(kp.response)
-            svec.append(kp.octave)
-            sjvec.append(int(np.round_(kp.pt[0]*self.ratio**kp.octave)))
-            sivec.append(int(np.round_(kp.pt[1]*self.ratio**kp.octave)))
-
-        Ft = {'ivec':np.array(ivec), 'jvec':np.array(jvec), 'svec':np.array(svec),
-              'sivec':np.array(sivec), 'sjvec':np.array(sjvec), 'evec':np.array(evec)}
+        Ft = keypointList2FtDict(keypoints)
 
         if len(gr_img.shape)!=2:
             raise ValueError("Input image is not a 2D array, possibile non-grayscale")
@@ -682,4 +726,51 @@ class MultiHarrisZernike:
         if timing: print("Feature invariants - {:0.4f}".format(time.time()-st)); st=time.time()
         return keypoints, V#, F, Ft, JA, JB, alpha, A
 
+    def computeHarrisEigenVals(self, gr_img, mask= None, timing=False):
+        '''
+        THIS FUNCTIONS NEEDS TO BE WRITTEN TO COMPUTE EIGENVALUES GIVEN A LIST OF KEYPOINTS
+        Compute Harris Eigen Values: Takes a grayscale image, keypoints
+        optionally a mask and returns OpenCV keypoints and descriptors
 
+        Parameters
+        ----------
+        gr_img : 2D-array (image)
+            The input grayscale image
+        keypoints : list of OpenCV keypoint objects
+        mask : 2D-array, optional
+            Image mask with 1s where keypoints are permissible
+        timing : bool, optional
+            Display timing in various parts of algorithm
+
+        ----------
+        Example usage:
+            kp, des = a.detectAndCompute(gr, mask=m1)
+
+        
+        #Ft = keypointList2FtDict(keypoints)
+        
+        if len(gr_img.shape)!=2:
+            raise ValueError("Input image is not a 2D array, possibile non-grayscale")
+        P = self.generate_pyramid(gr_img,mask=mask)
+        F = self.feat_extract_p2(P)
+        Ft = self.feat_thresh_sec(F,*gr_img.shape)        
+                
+        scales = self.levels
+        ratio = self.ratio
+        lpimages = P['lpimages']
+        #masks = ImgPyramid['masks']
+        #[rows,cols] = lpimages[0].shape
+
+        eig = [None] * scales
+        nL = [None] * scales
+        eigVals = [None] * scales
+
+        for k in range(scales):
+            [eig[k], nL[k], eigVals[k]] = self.eigen_image_p(lpimages[k],ratio**(k), compute_eigenvals=True)
+
+        kp_eigVals = np.zeros((Ft['Nfeats'],2))
+        # i at specified scale, j at specified scale and s scale         
+        for i, (si, sj, s) in enumerate(zip(Ft['sivec'], Ft['sjvec'], Ft['svec'])):
+            kp_eigVals[i,:] = eigVals[s][si,sj]
+        '''
+        return None

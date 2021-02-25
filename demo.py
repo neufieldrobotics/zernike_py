@@ -91,7 +91,7 @@ kp1, des1 = zernike_obj.detectAndCompute(gr1, mask=None, timing=True)
 
 matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
 
-matches_01 = knn_match_and_lowe_ratio_filter(matcher, des0, des1,threshold=0.9)
+matches_01 = knn_match_and_lowe_ratio_filter(matcher, des0, des1, threshold=0.9)
 
 kp0_match_01_pts = np.array([kp0[mat.queryIdx].pt for mat in matches_01])
 kp1_match_01_pts = np.array([kp1[mat.trainIdx].pt for mat in matches_01])
@@ -126,4 +126,14 @@ fig2.suptitle('Zernike Feature Matching: {:d} matches'.format(np.sum(mask_e_12))
 fig2_axes[0].imshow(matches_img_left)
 fig2_axes[1].imshow(matches_img_right)
 fig2.subplots_adjust(left=0.0, bottom=0.0, right=1.0, top=.9, wspace=0.1, hspace=0.0)
+
+kp0, des0, kp_eig_vals = zernike_obj.detectAndCompute(gr0, computeEigVals=True, mask=None, timing=False)
+fig3, fig3_axes = plt.subplots(1,1)
+fig3.suptitle('Harris Eigen Values')
+fig3_axes.plot(kp_eig_vals[:,0],kp_eig_vals[:,1], '+')
+data_lims = np.mean(kp_eig_vals,axis=0) + 2 * np.std(kp_eig_vals,axis=0)
+fig3_axes.set_xlim([0,data_lims[0]])
+fig3_axes.set_ylim([0,data_lims[1]])
+fig3_axes.set_xlabel(r'$\lambda_1$'); fig3_axes.set_ylabel(r'$\lambda_2$')
+
 plt.draw(); plt.show(block=True);
