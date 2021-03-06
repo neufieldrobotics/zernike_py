@@ -260,6 +260,16 @@ class MultiHarrisZernike:
             sigi_list += [sigi_list[-1]/self.ratio]
         return {'images':images, 'lpimages':lpimages, 'sigd':sigd_list,
                 'sigi':sigi_list, 'masks':masks}
+        
+    def generate_Pyramid_image_dims(self, gr_shape):
+        x,y = gr_shape
+        P_dim = []
+        for s in range(self.levels):
+            #print(x, y)
+            P_dim.append([x,y])
+            x = round(x * self.ratio)
+            y = round(y * self.ratio)            
+        return np.array(P_dim)
 
     def eigen_image_p(self,lpf,scale, compute_eigenvals=False):
         '''
@@ -383,9 +393,9 @@ class MultiHarrisZernike:
             csivec = np.copy(sivec)
             csjvec = np.copy(sjvec)
 
-            for u in range(-1,2):  #account for motion of feature points between scales
+            for u in [-1, 0, 1]:  #account for motion of feature points between scales
                 sojvec = sjvec+u #next scale jvec
-                for v in range(-1,2):
+                for v in [-1, 0, 1]:
                     soivec = sivec+v #next scale ivec
                     uvpend = regmask[k][soivec,sojvec] == 1
                     pendreg = np.logical_or(pendreg,uvpend)
@@ -406,8 +416,8 @@ class MultiHarrisZernike:
             nLvec = nL[k][csivec[pend],csjvec[pend]]
             #print(np.sum(Fsvec==k))
             k = k+1
-            F = {'ivec':Fivec, 'jvec':Fjvec, 'svec':Fsvec,
-                 'evec':Fevec, 'sivec':Fsivec, 'sjvec':Fsjvec}
+        F = {'ivec':Fivec, 'jvec':Fjvec, 'svec':Fsvec,
+             'evec':Fevec, 'sivec':Fsivec, 'sjvec':Fsjvec}
         return F
 
     def feat_thresh_sec(self,F,rows,cols):
@@ -567,9 +577,25 @@ class MultiHarrisZernike:
         alpha = np.angle(JA[1][1])
         return V,alpha,A
     
-    def keypointList2FtDict(self, keypoints):
+    def FtDict2KeypointList(self, Ft, alpha):
         '''
-        Convert an OpenCV keypoint list to MultiHaris style Ft dict
+        Convert MultiHarris Ft dict to OpenCV keypoint list
+        '''
+        keypoints = []
+        for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], alpha, Ft['evec'], Ft['svec']):
+            pt_x = float(x)
+            pt_y = float(y)
+            angle = float(np.rad2deg(ang))
+            response = float(res)
+            octave = int(sc)
+            size = float(self.zrad*(octave+1)*2)
+            keypoints.append(cv2.KeyPoint(pt_x, pt_y, size, _angle=angle,
+                                          _response=response, _octave=octave))
+        return keypoints
+        
+    def keypointList2FtDict(self, keypoints, gr_shape):
+        '''
+        Convert an OpenCV keypoint list to MultiHarris style Ft dict
         '''
         ivec = []
         jvec = []
@@ -586,8 +612,41 @@ class MultiHarrisZernike:
             sjvec.append(int(np.round_(kp.pt[0]*self.ratio**kp.octave)))
             sivec.append(int(np.round_(kp.pt[1]*self.ratio**kp.octave)))
 
-        Ft = {'ivec':np.array(ivec), 'jvec':np.array(jvec), 'svec':np.array(svec),
-              'sivec':np.array(sivec), 'sjvec':np.array(sjvec), 'evec':np.array(evec),
+        ivec_arr = np.array(ivec,dtype=int)
+        jvec_arr = np.array(jvec,dtype=int)
+        svec_arr = np.array(svec)
+        sivec_arr = np.array(sivec,dtype=int)
+        sjvec_arr = np.array(sjvec,dtype=int)
+        evec_arr = np.array(evec,dtype=np.float32)
+        
+        P_dims = self.generate_Pyramid_image_dims(gr_shape)
+        img_dims_arr = P_dims[svec_arr]
+        
+	#handle situations where the feature falls too close to the edge
+	#after rounding for scale
+        for index, (i, j, (dim_i, dim_j)) in enumerate(zip(sivec_arr, sjvec_arr, img_dims_arr)):
+            #print(index,i,j,dim_i,dim_j)
+            if dim_i - i <= self.zrad:
+                #print(index,i,j,dim_i,dim_j)
+                #print("Less: ",dim_i, i)
+                sivec_arr[index] = dim_i - self.zrad - 1
+            elif i <= self.zrad:        
+                #print(index,i,j,dim_i,dim_j)
+                #print("Less: ",dim_i, i)
+                sivec_arr[index] = self.zrad + 1
+            
+            if dim_j - j <= self.zrad:
+                #print(index,i,j,dim_i,dim_j)
+                #print("Less: ",dim_j, j, dim_j - zernike.zrad - 1)
+                sjvec_arr[index] = dim_j - self.zrad - 1
+            elif j <= self.zrad:        
+                #print(index,i,j,dim_i,dim_j)
+                #print("Less: ",dim_j, j)
+                sjvec_arr[index] = self.zrad + 1            
+                           
+
+        Ft = {'ivec':ivec_arr, 'jvec':jvec_arr, 'svec':svec_arr,
+              'sivec':sivec_arr, 'sjvec': sjvec_arr, 'evec':evec_arr,
               'Nfeats':len(keypoints)}
         return Ft
 
@@ -597,7 +656,7 @@ class MultiHarrisZernike:
     def defaultNorm(self):
         return cv2.NORM_L2
     
-    def detectAndCompute(self, gr_img, mask=None, timing=False, computeEigVals=False):
+    def detectAndCompute(self, gr_img, mask=None, timing=False, computeEigVals=False, Ft=None):
         '''
         cv2.Feature2D style detectAndCompute.  Takes a grayscale image and
         optionally a mask and returns OpenCV keypoints and descriptors
@@ -623,15 +682,15 @@ class MultiHarrisZernike:
         if timing: print("Generate pyramid - {:0.4f}".format(time.time()-st)); st=time.time()
         F = self.feat_extract_p2(P)
         if timing: print("Extract features - {:0.4f}".format(time.time()-st)); st=time.time()
-        Ft = self.feat_thresh_sec(F,*gr_img.shape)
+        if Ft is None:
+            Ft = self.feat_thresh_sec(F,*gr_img.shape)
         if timing: print("Feature Threshold - {:0.4f}".format(time.time()-st)); st=time.time()
         JA,JB = self.z_jet_p2(P,Ft)
         if timing: print("Feature jets - {:0.4f}".format(time.time()-st)); st=time.time()
         V,alpha,A = self.zinvariants4(JA, JB)
         if timing: print("Feature invariants - {:0.4f}".format(time.time()-st)); st=time.time()
-        kp = [cv2.KeyPoint(float(x),float(y),float(self.zrad*(sc+1)*2),_angle=float(ang),_response=float(res),_octave=int(sc))
-              for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha),
-                                        Ft['evec'],Ft['svec'])]
+           
+        kp = self.FtDict2KeypointList(Ft, alpha)
               
         if computeEigVals:
             scales = self.levels
@@ -652,7 +711,7 @@ class MultiHarrisZernike:
             for i, (si, sj, s) in enumerate(zip(Ft['sivec'], Ft['sjvec'], Ft['svec'])):
                 kp_eigVals[i,:] = eigVals[s][si,sj]
 
-            return kp, V, kp_eigVals
+            return kp, V, kp_eigVals, Ft
         
         else:
             return kp, V, #Ft, F, Ft, JA, JB, alpha, A
@@ -694,7 +753,7 @@ class MultiHarrisZernike:
 
         return kp
 
-    def compute(self, gr_img, keypoints, timing=False, mask=None):
+    def compute(self, gr_img, keypoints, timing=False, mask=None, Ft=None):
         '''
         cv2.Feature2D style compute.  Takes a grayscale image and keypoints
         and returns OpenCV keypoints and descriptors
@@ -712,8 +771,29 @@ class MultiHarrisZernike:
             kp, des = a.compute(gr, kp, mask=m1)
 
         '''
-        Ft = keypointList2FtDict(keypoints)
+        Ft = self.keypointList2FtDict(keypoints, gr_img.shape)
+        Ft, V, Ft = self.computeFromFt(gr_img, Ft, timing=time, mask=mask, computeEigVals=False)  
 
+        return keypoints, V
+    
+    def computeFromFt(self, gr_img, Ft, timing=False, mask=None, computeEigVals=False):
+        '''
+        cv2.Feature2D style compute.  Takes a grayscale image and keypoints
+        and returns OpenCV keypoints and descriptors
+
+        Parameters
+        ----------
+        gr_img : 2D-array (image)
+            The input grayscale image
+        keypoints : list of OpenCV keypoint objects
+        timing : bool, optional
+            Display timing in various parts of algorithm
+
+        ----------
+        Example usage:
+            kp, des = a.compute(gr, kp, mask=m1)
+
+        '''
         if len(gr_img.shape)!=2:
             raise ValueError("Input image is not a 2D array, possibile non-grayscale")
         if timing: st=time.time()
@@ -724,7 +804,28 @@ class MultiHarrisZernike:
         if timing: print("Feature jets - {:0.4f}".format(time.time()-st)); st=time.time()
         V,alpha,A = self.zinvariants4(JA, JB)
         if timing: print("Feature invariants - {:0.4f}".format(time.time()-st)); st=time.time()
-        return keypoints, V#, F, Ft, JA, JB, alpha, A
+        keypoints = self.FtDict2KeypointList(Ft, alpha)        
+    
+        if computeEigVals:
+            scales = self.levels
+            ratio = self.ratio
+            lpimages = P['lpimages']
+    
+            eig = [None] * scales
+            nL = [None] * scales
+            eigVals = [None] * scales
+    
+            for k in range(scales):
+                [eig[k], nL[k], eigVals[k]] = self.eigen_image_p(lpimages[k],ratio**(k), compute_eigenvals=True)
+    
+            kp_eigVals = np.zeros((Ft['Nfeats'],2))
+            # i at specified scale, j at specified scale and s scale         
+            for i, (si, sj, s) in enumerate(zip(Ft['sivec'], Ft['sjvec'], Ft['svec'])):
+                kp_eigVals[i,:] = eigVals[s][si,sj]
+
+            return keypoints, V, Ft, kp_eigVals
+        else:
+            return keypoints, V, Ft #, F, Ft, JA, JB, alpha, A
 
     def computeHarrisEigenVals(self, gr_img, mask= None, timing=False):
         '''
