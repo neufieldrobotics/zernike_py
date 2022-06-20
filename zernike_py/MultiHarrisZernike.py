@@ -9,8 +9,11 @@ import numpy as np
 np.set_printoptions(precision=5,suppress=True)
 import cv2
 import time
+from packaging import version
 #from matlab_imresize.imresize import imresize
 #from scipy.ndimage import convolve
+
+OPENCV_NEWER_THAN_4_5_2 = version.parse(cv2.__version__) > version.parse('4.5.2')
 
 # Inheriting from opencv class causes segfaults
 #class MultiHarrisZernike (cv2.Feature2D):
@@ -589,8 +592,13 @@ class MultiHarrisZernike:
             response = float(res)
             octave = int(sc)
             size = float(self.zrad*(octave+1)*2)
-            keypoints.append(cv2.KeyPoint(pt_x, pt_y, size, _angle=angle,
-                                          _response=response, _octave=octave))
+            
+            if OPENCV_NEWER_THAN_4_5_2:
+                keypoints.append(cv2.KeyPoint(x=pt_x, y=pt_y, size=size, angle=angle,
+                                              response=response, octave=octave))
+            else:
+                keypoints.append(cv2.KeyPoint(pt_x, pt_y, size, _angle=angle,
+                                              _response=response, _octave=octave))
         return keypoints
         
     def keypointList2FtDict(self, keypoints, gr_shape):
@@ -708,8 +716,14 @@ class MultiHarrisZernike:
     
             kp_eigVals = np.zeros((Ft['Nfeats'],2))
             # i at specified scale, j at specified scale and s scale         
-            for i, (si, sj, s) in enumerate(zip(Ft['sivec'], Ft['sjvec'], Ft['svec'])):
-                kp_eigVals[i,:] = eigVals[s][si,sj]
+            if OPENCV_NEWER_THAN_4_5_2:
+                kp = [cv2.KeyPoint(x=float(x),y=float(y),size=float(self.zrad*(sc+1)*2),angle=float(ang),response=float(res),octave=int(sc))
+                      for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha), 
+                                                Ft['evec'],Ft['svec'])]
+            else:
+                kp = [cv2.KeyPoint(float(x),float(y),float(self.zrad*(sc+1)*2),_angle=float(ang),_response=float(res),_octave=int(sc))
+                      for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha), 
+                                                Ft['evec'],Ft['svec'])]
 
             return kp, V, kp_eigVals, Ft
         
@@ -746,9 +760,15 @@ class MultiHarrisZernike:
         if timing: print("Feature Threshold - {:0.4f}".format(time.time()-st)); st=time.time()
         alpha = self.corner_angle(P, Ft)
         if timing: print("Angle computation - {:0.4f}".format(time.time()-st)); st=time.time()
-        kp = [cv2.KeyPoint(x,y,self.zrad*(sc+1)*2,_angle=ang,_response=res,_octave=sc)
-              for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha),
-                                        Ft['evec'],Ft['svec'])]
+        if OPENCV_NEWER_THAN_4_5_2:
+            kp = [cv2.KeyPoint(x=x,y=y,size=self.zrad*(sc+1)*2,angle=ang,response=res,octave=sc)
+                  for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha),
+                                            Ft['evec'],Ft['svec'])]
+        else:
+            kp = [cv2.KeyPoint(x,y,self.zrad*(sc+1)*2,_angle=ang,_response=res,_octave=sc)
+                  for x,y,ang,res,sc in zip(Ft['jvec'], Ft['ivec'], np.rad2deg(alpha),
+                                            Ft['evec'],Ft['svec'])]
+        
         if timing: print("Keypoint export - {:0.4f}".format(time.time()-st)); st=time.time()
 
         return kp

@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/neufieldrobotics/zernike_py.svg?branch=master)](https://travis-ci.org/neufieldrobotics/zernike_py)
+[![Build Status](https://app.travis-ci.com/neufieldrobotics/zernike_py.svg?branch=master)](https://app.travis-ci.com/github/neufieldrobotics/zernike_py/branches)
 
 # zernike_py
 
