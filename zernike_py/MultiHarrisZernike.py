@@ -592,8 +592,13 @@ class MultiHarrisZernike:
             response = float(res)
             octave = int(sc)
             size = float(self.zrad*(octave+1)*2)
-            keypoints.append(cv2.KeyPoint(pt_x, pt_y, size, _angle=angle,
-                                          _response=response, _octave=octave))
+            
+            if OPENCV_NEWER_THAN_4_5_2:
+                keypoints.append(cv2.KeyPoint(x=pt_x, y=pt_y, size=size, angle=angle,
+                                              response=response, octave=octave))
+            else:
+                keypoints.append(cv2.KeyPoint(pt_x, pt_y, size, _angle=angle,
+                                              _response=response, _octave=octave))
         return keypoints
         
     def keypointList2FtDict(self, keypoints, gr_shape):
